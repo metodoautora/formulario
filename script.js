@@ -3,9 +3,9 @@
    ▼▼▼ EDITE APENAS ESTA PARTE ▼▼▼
    ========================================================= */
 const CONFIG = {
-  // WhatsApp que vai RECEBER as candidaturas (o seu / da professora).
-  // Formato internacional, só dígitos: 55 + DDD + número.
-  whatsapp: "5511999999999",
+  // Cole aqui a URL do app do Google Apps Script (termina em /exec).
+  // Passo a passo no README.md.
+  endpoint: "COLE_AQUI_A_URL_DO_GOOGLE_APPS_SCRIPT",
 };
 /* ▲▲▲ EDITE APENAS ESTA PARTE ▲▲▲ */
 
@@ -21,7 +21,9 @@ const questionSteps = steps.filter(
 );
 
 let current = 0;
+let enviando = false;
 const answers = {};
+const startedAt = Date.now(); // para medir o tempo de preenchimento
 
 function showStep(index) {
   current = Math.max(0, Math.min(index, steps.length - 1));
@@ -37,19 +39,16 @@ function showStep(index) {
   progressBar.style.width = pct + "%";
 
   // Contador de perguntas
-  if (qIndex >= 0) {
-    stepCount.textContent = `Pergunta ${qIndex + 1} de ${questionSteps.length}`;
-  } else {
-    stepCount.textContent = "";
-  }
+  stepCount.textContent =
+    qIndex >= 0 ? `Pergunta ${qIndex + 1} de ${questionSteps.length}` : "";
 
   // Foco no primeiro campo
   const input = step.querySelector(".input");
   if (input) setTimeout(() => input.focus(), 80);
 }
 
-function showError(step, show) {
-  const err = step.querySelector("[data-error]");
+function showError(step, show, selector) {
+  const err = step.querySelector(selector || "[data-error]");
   if (err) err.classList.toggle("is-visible", show);
 }
 
@@ -72,8 +71,7 @@ function validate(step) {
     const input = step.querySelector(".input");
     const val = (input.value || "").trim();
     if (input.id === "whatsapp") {
-      const digits = val.replace(/\D/g, "");
-      return digits.length >= 10;
+      return val.replace(/\D/g, "").length >= 10;
     }
     return val.length >= 2;
   }
@@ -89,10 +87,7 @@ function validate(step) {
 
 function next() {
   const step = steps[current];
-  if (!validate(step)) {
-    showError(step, true);
-    return;
-  }
+  if (!validate(step)) return showError(step, true);
   showError(step, false);
   showStep(current + 1);
 }
@@ -122,6 +117,19 @@ document.querySelectorAll(".choices").forEach((group) => {
   });
 });
 
+// ----- Máscara simples de telefone (Brasil) -----
+const whatsappInput = document.getElementById("whatsapp");
+whatsappInput.addEventListener("input", () => {
+  let d = whatsappInput.value.replace(/\D/g, "").slice(0, 11);
+  let out = d;
+  if (d.length > 2) out = `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length > 7) {
+    const corte = d.length > 10 ? 7 : 6;
+    out = `(${d.slice(0, 2)}) ${d.slice(2, corte)}-${d.slice(corte)}`;
+  }
+  whatsappInput.value = out;
+});
+
 // ----- Enter avança nos campos de texto (menos textarea) -----
 form.querySelectorAll('input[type="text"], input[type="tel"], input[type="email"]').forEach((inp) => {
   inp.addEventListener("keydown", (e) => {
@@ -132,38 +140,85 @@ form.querySelectorAll('input[type="text"], input[type="tel"], input[type="email"
   });
 });
 
-// ----- Envio -----
-function montarMensagem() {
-  const v = (id) => (document.getElementById(id).value || "").trim();
-  const linhas = [
-    "Olá! Quero me candidatar ao Método Autora. ✨",
-    "",
-    `*Nome:* ${v("nome")}`,
-    `*WhatsApp:* ${v("whatsapp")}`,
-  ];
-  if (v("email")) linhas.push(`*E-mail:* ${v("email")}`);
-  if (answers.momento) linhas.push(`*Momento da pesquisa:* ${answers.momento}`);
-  if (answers.trava) linhas.push(`*Maior trava:* ${answers.trava}`);
-  if (v("motivo")) linhas.push(`*Por que agora:* ${v("motivo")}`);
-  return linhas.join("\n");
+// ----- Métricas de marketing -----
+function coletarMetricas() {
+  const params = new URLSearchParams(location.search);
+  let origem = params.get("utm_source");
+  if (!origem) {
+    if (document.referrer) {
+      try { origem = new URL(document.referrer).hostname; } catch (e) { origem = "outro"; }
+    } else {
+      origem = "direto";
+    }
+  }
+  const campanha = [params.get("utm_medium"), params.get("utm_campaign")]
+    .filter(Boolean)
+    .join(" / ");
+  return {
+    origem: origem,
+    campanha: campanha,
+    dispositivo: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "Celular" : "Computador",
+    tempo_seg: Math.round((Date.now() - startedAt) / 1000),
+    pagina: location.href,
+  };
 }
 
+function coletarRespostas() {
+  const v = (id) => (document.getElementById(id).value || "").trim();
+  return Object.assign(
+    {
+      nome: v("nome"),
+      whatsapp: v("whatsapp"),
+      email: v("email"),
+      momento: answers.momento || "",
+      trava: answers.trava || "",
+      motivo: v("motivo"),
+    },
+    coletarMetricas()
+  );
+}
+
+// ----- Envio para o Google Sheets -----
 form.addEventListener("submit", (e) => {
   e.preventDefault();
-  const step = steps[current];
-  if (!validate(step)) {
-    showError(step, true);
-    return;
-  }
-  const waUrl =
-    "https://wa.me/" +
-    CONFIG.whatsapp.replace(/\D/g, "") +
-    "?text=" +
-    encodeURIComponent(montarMensagem());
+  if (enviando) return;
 
-  document.getElementById("waLink").setAttribute("href", waUrl);
-  showStep(steps.findIndex((s) => s.dataset.step === "done"));
-  setTimeout(() => { window.location.href = waUrl; }, 1200);
+  const step = steps[current];
+  if (!validate(step)) return showError(step, true);
+
+  // Anti-spam: se o campo-isca foi preenchido, é robô. Finge sucesso.
+  if (form.querySelector('[name="website"]').value) {
+    return showStep(steps.findIndex((s) => s.dataset.step === "done"));
+  }
+
+  // Garante que a URL do Google Sheets foi configurada.
+  if (!/^https?:\/\//.test(CONFIG.endpoint)) {
+    console.warn("Configure CONFIG.endpoint no script.js (URL do Google Apps Script).");
+    return showError(step, true, "#sendError");
+  }
+
+  const btn = document.getElementById("submitBtn");
+  enviando = true;
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+  showError(step, false, "#sendError");
+
+  fetch(CONFIG.endpoint, {
+    method: "POST",
+    mode: "no-cors",
+    body: new URLSearchParams(coletarRespostas()),
+  })
+    .then(() => {
+      showStep(steps.findIndex((s) => s.dataset.step === "done"));
+    })
+    .catch(() => {
+      showError(step, true, "#sendError");
+    })
+    .finally(() => {
+      enviando = false;
+      btn.disabled = false;
+      btn.textContent = "Enviar minha candidatura";
+    });
 });
 
 // Início

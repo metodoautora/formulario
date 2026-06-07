@@ -27,6 +27,13 @@
 
     <form id="form" novalidate>
 
+      <!-- campo-isca anti-spam (invisível para humanos) -->
+      <div class="hp" aria-hidden="true">
+        <label>Deixe este campo em branco
+          <input type="text" name="website" tabindex="-1" autocomplete="off" />
+        </label>
+      </div>
+
       <!-- ===== Tela inicial ===== -->
       <section class="step is-active" data-step="intro">
         <span class="eyebrow">Candidatura · leva menos de 1 minuto</span>
@@ -116,15 +123,16 @@
       <!-- ===== Consentimento + envio ===== -->
       <section class="step" data-step="consent" data-required>
         <span class="q">Quase lá! Confirma o contato?</span>
-        <p class="lead">Ao enviar, você será direcionada para o WhatsApp da professora com a sua candidatura já preenchida.</p>
+        <p class="lead">Ao enviar, sua candidatura vai direto para a professora, que entra em contato pelo WhatsApp informado.</p>
         <label class="check">
           <input type="checkbox" id="consent" name="consent" />
           <span>Autorizo o contato pelo WhatsApp e e-mail informados sobre o Método Autora.</span>
         </label>
         <p class="error" data-error>É preciso autorizar o contato para enviar.</p>
+        <p class="error" id="sendError">Não foi possível enviar agora. Confira sua conexão e tente novamente.</p>
         <div class="actions">
           <button type="button" class="btn btn--ghost" data-back>Voltar</button>
-          <button type="submit" class="btn btn--lg">Enviar minha candidatura</button>
+          <button type="submit" class="btn btn--lg" id="submitBtn">Enviar minha candidatura</button>
         </div>
       </section>
 
@@ -132,8 +140,9 @@
       <section class="step step--done" data-step="done">
         <div class="done__seal" aria-hidden="true">✓</div>
         <h2>Candidatura enviada!</h2>
-        <p class="lead">Estamos te levando para o WhatsApp para concluir. Se não abrir automaticamente, é só clicar no botão abaixo.</p>
-        <a href="#" class="btn btn--lg" id="waLink" target="_blank" rel="noopener">Abrir o WhatsApp</a>
+        <p class="lead">Recebemos suas respostas. Em breve a professora entra em contato com você pelo WhatsApp. Enquanto isso:</p>
+        <a href="https://metodoautora.github.io/site/" class="btn btn--lg" target="_blank" rel="noopener">Conhecer o Método Autora</a>
+        <a href="https://instagram.com/steribeiroprof" class="link-secondary" target="_blank" rel="noopener">Seguir @steribeiroprof no Instagram</a>
       </section>
 
     </form>
