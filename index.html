@@ -40,7 +40,7 @@
         <h1>Candidate-se a uma vaga no <em>Método Autora</em></h1>
         <p class="lead">Responda algumas perguntas rápidas para entendermos o seu momento de pesquisa. Em seguida, falamos com você pelo WhatsApp.</p>
         <button type="button" class="btn btn--lg" data-next>Começar candidatura</button>
-        <p class="reassure">São só 5 perguntas · suas respostas vão direto pra professora</p>
+        <p class="reassure">Perguntas rápidas · leva cerca de 1 minuto</p>
       </section>
 
       <!-- ===== Nome ===== -->
@@ -102,6 +102,48 @@
           <button type="button" class="choice" data-value="Escrever com a minha voz / autoria">Escrever com a minha voz / autoria</button>
           <button type="button" class="choice" data-value="Discussão dos dados">Discussão dos dados</button>
           <button type="button" class="choice" data-value="Rotina e organização da pesquisa">Rotina e organização da pesquisa</button>
+        </div>
+        <p class="error" data-error>Escolha uma opção para continuar.</p>
+        <div class="actions">
+          <button type="button" class="btn btn--ghost" data-back>Voltar</button>
+        </div>
+      </section>
+
+      <!-- ===== Prazo / urgência ===== -->
+      <section class="step" data-step="choice" data-required>
+        <span class="q">Você tem algum prazo se aproximando na sua pesquisa?</span>
+        <div class="choices" data-name="prazo">
+          <button type="button" class="choice" data-value="Sim, nos próximos 1–3 meses" data-score="3">Sim, nos próximos 1–3 meses</button>
+          <button type="button" class="choice" data-value="Nos próximos 6 meses" data-score="1">Nos próximos 6 meses</button>
+          <button type="button" class="choice" data-value="Sem prazo definido" data-score="0">Sem prazo definido</button>
+        </div>
+        <p class="error" data-error>Escolha uma opção para continuar.</p>
+        <div class="actions">
+          <button type="button" class="btn btn--ghost" data-back>Voltar</button>
+        </div>
+      </section>
+
+      <!-- ===== Prioridade ===== -->
+      <section class="step" data-step="choice" data-required>
+        <span class="q">Resolver a sua escrita acadêmica hoje é…</span>
+        <div class="choices" data-name="prioridade">
+          <button type="button" class="choice" data-value="Prioridade máxima, preciso destravar já" data-score="3">Prioridade máxima, preciso destravar já</button>
+          <button type="button" class="choice" data-value="Importante, mas não urgente" data-score="1">Importante, mas não urgente</button>
+          <button type="button" class="choice" data-value="Quero, mas sem pressa" data-score="0">Quero, mas sem pressa</button>
+        </div>
+        <p class="error" data-error>Escolha uma opção para continuar.</p>
+        <div class="actions">
+          <button type="button" class="btn btn--ghost" data-back>Voltar</button>
+        </div>
+      </section>
+
+      <!-- ===== Prontidão para investir ===== -->
+      <section class="step" data-step="choice" data-required>
+        <span class="q">Para destravar sua pesquisa, você está disposta a investir em um método/apoio?</span>
+        <div class="choices" data-name="investir">
+          <button type="button" class="choice" data-value="Sim, é prioridade pra mim" data-score="3">Sim, é prioridade pra mim</button>
+          <button type="button" class="choice" data-value="Depende do valor e das condições" data-score="1">Depende do valor e das condições</button>
+          <button type="button" class="choice" data-value="Por enquanto, só busco conteúdo gratuito" data-score="-5">Por enquanto, só busco conteúdo gratuito</button>
         </div>
         <p class="error" data-error>Escolha uma opção para continuar.</p>
         <div class="actions">

@@ -23,6 +23,7 @@ const questionSteps = steps.filter(
 let current = 0;
 let enviando = false;
 const answers = {};
+const scores = {}; // pontuação de qualificação por pergunta
 const startedAt = Date.now(); // para medir o tempo de preenchimento
 // Identificador único desta sessão: usado para atualizar a MESMA linha na planilha.
 const sessionId = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
@@ -114,6 +115,9 @@ document.querySelectorAll(".choices").forEach((group) => {
       group.querySelectorAll(".choice").forEach((c) => c.classList.remove("is-selected"));
       choice.classList.add("is-selected");
       answers[group.dataset.name] = choice.dataset.value;
+      if (choice.dataset.score !== undefined) {
+        scores[group.dataset.name] = Number(choice.dataset.score) || 0;
+      }
       showError(choice.closest(".step"), false);
       setTimeout(next, 280);
     });
@@ -175,8 +179,19 @@ function coletarMetricas() {
   };
 }
 
+function calcularScore() {
+  return Object.values(scores).reduce((a, b) => a + b, 0);
+}
+
+function temperatura(score) {
+  if (score >= 7) return "🔥 Quente";
+  if (score >= 3) return "🟡 Morno";
+  return "🔵 Frio";
+}
+
 function coletarRespostas() {
   const v = (id) => (document.getElementById(id).value || "").trim();
+  const score = calcularScore();
   return Object.assign(
     {
       nome: v("nome"),
@@ -184,7 +199,12 @@ function coletarRespostas() {
       email: v("email"),
       momento: answers.momento || "",
       trava: answers.trava || "",
+      prazo: answers.prazo || "",
+      prioridade: answers.prioridade || "",
+      investir: answers.investir || "",
       motivo: v("motivo"),
+      score: score,
+      temperatura: temperatura(score),
     },
     coletarMetricas()
   );
