@@ -24,6 +24,8 @@ let current = 0;
 let enviando = false;
 const answers = {};
 const startedAt = Date.now(); // para medir o tempo de preenchimento
+// Identificador único desta sessão: usado para atualizar a MESMA linha na planilha.
+const sessionId = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
 
 function showStep(index) {
   current = Math.max(0, Math.min(index, steps.length - 1));
@@ -90,6 +92,7 @@ function next() {
   if (!validate(step)) return showError(step, true);
   showError(step, false);
   showStep(current + 1);
+  enviarDados("parcial"); // salva o progresso a cada avanço
 }
 
 function back() {
@@ -140,6 +143,15 @@ form.querySelectorAll('input[type="text"], input[type="tel"], input[type="email"
   });
 });
 
+// ----- Salva também quando a pessoa sai do campo ou da página -----
+["nome", "whatsapp", "email", "motivo"].forEach((id) => {
+  document.getElementById(id).addEventListener("blur", () => enviarDados("parcial"));
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") enviarDados("parcial", true);
+});
+window.addEventListener("pagehide", () => enviarDados("parcial", true));
+
 // ----- Métricas de marketing -----
 function coletarMetricas() {
   const params = new URLSearchParams(location.search);
@@ -178,7 +190,31 @@ function coletarRespostas() {
   );
 }
 
-// ----- Envio para o Google Sheets -----
+// ----- Envio para o Google Sheets (parcial ou completo) -----
+function enviarDados(status, usarBeacon) {
+  if (!/^https?:\/\//.test(CONFIG.endpoint)) return;
+
+  const dados = coletarRespostas();
+  // Só registra a partir do momento em que existe um nome.
+  if (!dados.nome) return;
+
+  const payload = Object.assign({ id: sessionId, status: status }, dados);
+  const body = new URLSearchParams(payload);
+
+  // Beacon: ideal para quando a pessoa está fechando a página.
+  if (usarBeacon && navigator.sendBeacon) {
+    navigator.sendBeacon(CONFIG.endpoint, body);
+    return Promise.resolve();
+  }
+  return fetch(CONFIG.endpoint, {
+    method: "POST",
+    mode: "no-cors",
+    body: body,
+    keepalive: true,
+  });
+}
+
+// ----- Envio final -----
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   if (enviando) return;
@@ -203,11 +239,7 @@ form.addEventListener("submit", (e) => {
   btn.textContent = "Enviando...";
   showError(step, false, "#sendError");
 
-  fetch(CONFIG.endpoint, {
-    method: "POST",
-    mode: "no-cors",
-    body: new URLSearchParams(coletarRespostas()),
-  })
+  Promise.resolve(enviarDados("completo"))
     .then(() => {
       showStep(steps.findIndex((s) => s.dataset.step === "done"));
     })

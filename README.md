@@ -22,33 +22,83 @@ Você faz isso **uma vez**. Leva ~5 minutos.
 - Apague o conteúdo que aparecer e **cole o código abaixo**:
 
 ```javascript
+// E-mail que recebe o aviso de nova candidatura.
+var EMAIL_AVISO = "stephanie.hpr@gmail.com";
+
 function doPost(e) {
   var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+  lock.waitLock(30000);
   try {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow([
-        "Data/Hora", "Nome", "WhatsApp", "E-mail", "Momento da pesquisa",
-        "Maior trava", "Por que agora", "Origem", "Campanha",
-        "Dispositivo", "Tempo (seg)", "Página"
-      ]);
-    }
+    var cabecalho = [
+      "ID", "Status", "Criado em", "Atualizado em", "Nome", "WhatsApp", "E-mail",
+      "Momento da pesquisa", "Maior trava", "Por que agora",
+      "Origem", "Campanha", "Dispositivo", "Tempo (seg)", "Página"
+    ];
+    if (sheet.getLastRow() === 0) sheet.appendRow(cabecalho);
+
     var p = e.parameter;
-    sheet.appendRow([
-      new Date(), p.nome || "", p.whatsapp || "", p.email || "",
+    var id = p.id || ("sem-id-" + new Date().getTime());
+    var agora = new Date();
+    var status = (p.status === "completo") ? "Completo" : "Parcial";
+
+    // Procura uma linha já existente com este ID (coluna 1).
+    var ultima = sheet.getLastRow();
+    var linha = -1;
+    if (ultima > 1) {
+      var ids = sheet.getRange(2, 1, ultima - 1, 1).getValues();
+      for (var i = 0; i < ids.length; i++) {
+        if (ids[i][0] === id) { linha = i + 2; break; }
+      }
+    }
+
+    var novo = (linha === -1);
+    var criadoEm = novo ? agora : (sheet.getRange(linha, 3).getValue() || agora);
+
+    var dados = [
+      id, status, criadoEm, agora,
+      p.nome || "", p.whatsapp || "", p.email || "",
       p.momento || "", p.trava || "", p.motivo || "",
-      p.origem || "", p.campanha || "", p.dispositivo || "",
-      p.tempo_seg || "", p.pagina || ""
-    ]);
+      p.origem || "", p.campanha || "", p.dispositivo || "", p.tempo_seg || "", p.pagina || ""
+    ];
+
+    if (novo) {
+      sheet.appendRow(dados);
+      avisarPorEmail(dados);            // e-mail só quando é uma pessoa NOVA
+    } else {
+      sheet.getRange(linha, 1, 1, dados.length).setValues([dados]);
+    }
+
     return ContentService
-      .createTextOutput(JSON.stringify({ ok: true }))
+      .createTextOutput(JSON.stringify({ ok: true, novo: novo }))
       .setMimeType(ContentService.MimeType.JSON);
   } finally {
     lock.releaseLock();
   }
 }
+
+function avisarPorEmail(d) {
+  var assunto = "📝 Nova candidatura no Método Autora: " + (d[4] || "sem nome");
+  var corpo =
+    "Uma nova pessoa começou a preencher o formulário.\n\n" +
+    "Nome: " + d[4] + "\n" +
+    "WhatsApp: " + d[5] + "\n" +
+    "E-mail: " + d[6] + "\n" +
+    "Momento da pesquisa: " + d[7] + "\n" +
+    "Maior trava: " + d[8] + "\n" +
+    "Por que agora: " + d[9] + "\n\n" +
+    "Origem: " + d[10] + (d[11] ? " (" + d[11] + ")" : "") + "\n" +
+    "Dispositivo: " + d[12] + "\n\n" +
+    "Obs.: o status e os dados podem ser completados conforme a pessoa termina. " +
+    "Veja sempre a linha atualizada na planilha.";
+  MailApp.sendEmail(EMAIL_AVISO, assunto, corpo);
+}
 ```
+
+> **Importante:** sempre que você **alterar este código**, é preciso **republicar**:
+> em Apps Script vá em **Implantar → Gerenciar implantações → editar (lápis) →
+> Versão: Nova versão → Implantar**. A URL `/exec` continua a mesma.
+> Na primeira vez que rodar, o Google vai pedir uma **autorização extra para enviar e-mail** — aceite.
 
 ### 3. Publique como aplicativo da web
 - Clique em **Implantar → Nova implantação**.
@@ -72,16 +122,26 @@ const CONFIG = {
 
 ---
 
+## Captura parcial (mesmo sem terminar)
+
+Assim que a pessoa preenche o **nome**, a linha já é criada na planilha com **Status = Parcial**.
+Conforme ela avança, a **mesma linha** vai sendo atualizada (não cria duplicatas) e, ao enviar,
+o status vira **Completo**. Ou seja: você não perde nenhum lead, mesmo quem desistir no meio.
+
+O **e-mail de aviso** para `stephanie.hpr@gmail.com` é enviado **uma vez por pessoa**, no momento
+em que ela aparece pela primeira vez (não fica mandando um e-mail a cada campo).
+
 ## Métricas que a planilha registra
 
-Além das respostas, cada linha traz dados para você medir o que funciona:
+Cada linha traz dados para você medir o que funciona:
 
 | Coluna | Para que serve |
 | --- | --- |
-| **Data/Hora** | Quando a candidatura chegou. |
+| **Status** | Parcial (começou) ou Completo (terminou). |
+| **Criado em / Atualizado em** | Quando começou e quando foi a última atualização. |
 | **Origem / Campanha** | De onde veio o lead (ex.: `utm_source=instagram`, anúncio, link na bio). |
 | **Dispositivo** | Celular ou computador. |
-| **Tempo (seg)** | Quanto a pessoa levou para responder (engajamento). |
+| **Tempo (seg)** | Quanto a pessoa levou (engajamento). |
 | **Página** | URL exata usada (útil com links UTM diferentes). |
 
 **Dica de marketing:** divulgue links com UTM para saber a origem. Exemplos:
